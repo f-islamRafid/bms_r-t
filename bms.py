@@ -39,7 +39,7 @@ class BuildingSystem:
         self.total_flats = set()
 
 
-        self.load_config()
+        self._load_config()
         self.load_data()
 
 def load_config(self):
@@ -157,3 +157,4 @@ def main():
 
 if __name__ == "__main__":
     main() 
+
