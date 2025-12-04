@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import bcrypt
+import os
 
 # -----------------------------
 
@@ -9,20 +10,20 @@ import bcrypt
 # -----------------------------
 
 class Family:
-    def __init__(self, flat_no, head_member, phone, members, email, password, nid):
-        self.flat_no = flat_no
-        self.head_member = head_member
-        self.phone = phone
-        self.members = members
-        self.email = email
-        self.password = password
-        self.nid = NotImplemented
+def **init**(self, flat_no, head_member, phone, members, email, password, nid):
+self.flat_no = flat_no
+self.head_member = head_member
+self.phone = phone
+self.members = members
+self.email = email
+self.password = password
+self.nid = nid
 
 class Notice:
-    def __init__(self, title, content, date_posted=None):
-        self.title = title
-        self.content = content
-        self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%m-%d %H:%M")
+def **init**(self, title, content, date_posted=None):
+self.title = title
+self.content = content
+self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # -----------------------------
 
@@ -50,27 +51,26 @@ class BuildingSystem:
                 self.admin_password_hash = config["admin_password_hash"].encode('utf-8')
                 self.total_flats = set(config["total_flats"])
         except (FileNotFoundError, KeyError):
-            self.first_time_setup()
+            self.admin_email = os.getenv("BMS_ADMIN_EMAIL")
+            admin_password = os.getenv("BMS_ADMIN_PASSWORD")
+            num_floors = int(os.getenv("BMS_FLOORS", 3))
+            units_per_floor = int(os.getenv("BMS_UNITS_PER_FLOOR", 2))
 
-    def first_time_setup(self):
-        print("\n--- First-Time Setup ---")
-        self.admin_email = input("Enter admin email: ")
-        password = input("Enter admin password: ")
-        self.admin_password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            if not self.admin_email or not admin_password:
+                raise RuntimeError("Admin credentials missing. Set BMS_ADMIN_EMAIL and BMS_ADMIN_PASSWORD.")
 
-        num_floors = int(input("Number of floors: "))
-        units_per_floor = int(input("Units per floor: "))
-        flats_list = [f"{floor}{chr(ord('A')+i)}" for floor in range(1, num_floors+1) for i in range(units_per_floor)]
-        self.total_flats = set(flats_list)
+            self.admin_password_hash = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt())
+            flats_list = [f"{floor}{chr(ord('A') + i)}" for floor in range(1, num_floors + 1) for i in range(units_per_floor)]
+            self.total_flats = set(flats_list)
 
-        config = {
-            "admin_email": self.admin_email,
-            "admin_password_hash": self.admin_password_hash.decode('utf-8'),
-            "total_flats": sorted(flats_list)
-        }
-        with open("config.json", "w") as f:
-            json.dump(config, f, indent=4)
-        print("Setup complete!\nGenerated flats:", sorted(flats_list))
+            config = {
+                "admin_email": self.admin_email,
+                "admin_password_hash": self.admin_password_hash.decode('utf-8'),
+                "total_flats": sorted(flats_list)
+            }
+            with open("config.json", "w") as f:
+                json.dump(config, f, indent=4)
+            print(f"✅ Config created with {len(flats_list)} flats.")
 
     def save_data(self):
         data = {"families": [vars(f) for f in self.families], "notices": [vars(n) for n in self.notices]}
@@ -94,66 +94,68 @@ class BuildingSystem:
                 return f
         return None
 
-    def add_family(self):
-        flat_no = input("Flat no: ").upper()
+    def add_family(self, flat_no, head_member, phone, members, email, password, nid):
         if flat_no not in self.total_flats:
-            print("Invalid flat number."); return
+            print(f"❌ Invalid flat number: {flat_no}")
+            return
         if any(f.flat_no == flat_no for f in self.families):
-            print("Flat already occupied."); return
-        head_member = input("Head member: ")
-        phone = input("Phone: ")
-        email = input("Email: ")
-        password = input("Password: ")
-        nid = input("NID: ")
-        members = int(input("Family members: "))
+            print(f"❌ Flat {flat_no} is already occupied.")
+            return
         self.families.append(Family(flat_no, head_member, phone, members, email, password, nid))
         self.save_data()
-        print("Family added successfully.")
+        print(f"✅ Family added to flat {flat_no}")
 
     def view_vacant_flats(self):
         occupied = {f.flat_no for f in self.families}
         vacant = self.total_flats - occupied
-        print("Vacant flats:", sorted(vacant))
+        print("🏠 Vacant flats:", sorted(vacant))
 
-    def post_notice(self):
-        title = input("Notice title: ")
-        content = input("Notice content: ")
+    def post_notice(self, title, content):
         self.notices.append(Notice(title, content))
         self.save_data()
-        print("Notice posted.")
+        print(f"📢 Notice posted: {title}")
 
 
 # -----------------------------
 
-# Main Program
+# Main Program (non-interactive)
 
 # -----------------------------
 
 def main():
     system = BuildingSystem()
-    email = input("Email: ")
-    password = input("Password: ")
+
+    email = os.getenv("BMS_ADMIN_EMAIL")
+    password = os.getenv("BMS_ADMIN_PASSWORD")
+
     user = system.login(email, password)
 
     if user == "admin":
-        print("Admin logged in!")
-        while True:
-            print("\n1. Add Family\n2. View Vacant Flats\n3. Post Notice\n4. Logout")
-            choice = input("Choice: ")
-            if choice == "1":
-                system.add_family()
-            elif choice == "2":
-                system.view_vacant_flats()
-            elif choice == "3":
-                system.post_notice()
-            elif choice == "4":
-                break
-            else:
-                print("Invalid choice.")
+        print(f"✅ Admin {email} logged in successfully!")
+        system.view_vacant_flats()
+
+        if os.getenv("BMS_ADD_FAMILY_FLAT"):
+            system.add_family(
+                flat_no=os.getenv("BMS_ADD_FAMILY_FLAT"),
+                head_member=os.getenv("BMS_ADD_FAMILY_HEAD", "John Doe"),
+                phone=os.getenv("BMS_ADD_FAMILY_PHONE", "0123456789"),
+                members=int(os.getenv("BMS_ADD_FAMILY_MEMBERS", 3)),
+                email=os.getenv("BMS_ADD_FAMILY_EMAIL", "family@example.com"),
+                password=os.getenv("BMS_ADD_FAMILY_PASSWORD", "password"),
+                nid=os.getenv("BMS_ADD_FAMILY_NID", "0000000000")
+            )
+
+        if os.getenv("BMS_POST_NOTICE_TITLE"):
+            system.post_notice(
+                title=os.getenv("BMS_POST_NOTICE_TITLE"),
+                content=os.getenv("BMS_POST_NOTICE_CONTENT", "Notice content")
+            )
+
     elif user:
-        print(f"Family {user.head_member} logged in!")
+        print(f"Family {user.head_member} (Flat {user.flat_no}) logged in!")
     else:
-        print("Login failed.")
+        print("❌ Login failed!")
+
 
 if __name__ == "__main__":
-    main() 
+    main()
