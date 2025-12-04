@@ -42,7 +42,7 @@ class BuildingSystem:
         self._load_config()
         self.load_data()
 
-def load_config(self):
+def _load_config(self):
     try:
         with open("config.json", "r") as f:
             config = json.load(f)
@@ -157,4 +157,5 @@ def main():
 
 if __name__ == "__main__":
     main() 
+
 
