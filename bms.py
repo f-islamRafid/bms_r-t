@@ -5,7 +5,7 @@ import os
 
 import os, json, bcrypt
 
-# 🔥 Auto-create default admin if users.json does not exist
+# Auto-create default admin if users.json does not exist
 if not os.path.exists("users.json"):
     print("⚠ No users.json found — creating default admin...")
 
@@ -105,13 +105,26 @@ class BuildingSystem:
         except FileNotFoundError:
             self.families, self.notices = [], []
 
-    def login(self, email, password):
-        if email == self.admin_email and bcrypt.checkpw(password.encode('utf-8'), self.admin_password_hash):
-            return "admin"
-        for f in self.families:
-            if f.email == email and f.password == password:
-                return f
-        return None
+    def login(self):
+        import os
+
+    # Read login from environment variables
+        username = os.getenv("ADMIN_USER")
+        password = os.getenv("ADMIN_PASS")
+
+        if not username or not password:
+            print("❌ No ADMIN_USER or ADMIN_PASS in environment.")
+            return False
+
+        for user in self.users:
+            if user["username"] == username:
+                if bcrypt.checkpw(password.encode(), user["password"].encode()):
+                    print("✔ Logged in successfully (Render mode)")
+                    return True
+
+        print("❌ Login failed!")
+        return False
+
 
     def add_family(self, flat_no, head_member, phone, members, email, password, nid):
         if flat_no not in self.total_flats:
