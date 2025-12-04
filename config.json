@@ -1,6 +1,7 @@
 {
     "admin_email": "f.rafid230@gmail.com",
     "admin_password_hash": "$2b$12$KtaywOhrYCRlgPPomN6ZSeWJQG/LhQoTpCxgOESJ9a93Zaqy9Feny",
+    "role": "admin",
     "total_flats": [
         "1A",
         "1B",
@@ -18,4 +19,5 @@
         "5B",
         "5C"
     ]
+
 }
