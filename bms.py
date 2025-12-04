@@ -26,7 +26,7 @@ class Family:
         self.members = members
         self.email = email
         
-        # 🔑 Hashing password if not already a hash
+        # Hashing password if not already a hash
         if password and not password.startswith("$2b$"):
             self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         else:
@@ -73,10 +73,10 @@ class BuildingSystem:
                 self.admin_password_hash = config["admin_password_hash"].encode('utf-8')
                 self.total_flats = set(config["total_flats"])
         except (FileNotFoundError, KeyError):
-            # Fallback/creation logic (use custom defaults here if you haven't used env vars)
+
             self.admin_email = os.getenv("BMS_ADMIN_EMAIL", "admin@bms.com")
             admin_password = os.getenv("BMS_ADMIN_PASSWORD", "supersecure")
-            num_floors = int(os.getenv("BMS_FLOORS", 3))
+            num_floors = int(os.getenv("BMS_FLOORS", 5))
             units_per_floor = int(os.getenv("BMS_UNITS_PER_FLOOR", 2))
 
             self.admin_password_hash = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt())
@@ -124,7 +124,7 @@ class BuildingSystem:
         except FileNotFoundError:
             self.families, self.notices = [], []
         except Exception as e:
-            print(f"❌ Error loading data: {e}")
+            print(f"Error loading data: {e}")
             self.families, self.notices = [], []
 
     def authenticate_admin(self, email, password):
@@ -158,6 +158,20 @@ class BuildingSystem:
         self.families.append(new_family)
         self.save_data()
         print(f"\nFamily added to flat **{flat_no}**. Head: {head_member}.")
+
+
+    def view_occupied_flats(self):
+        """Display all occupied flats."""
+        occupied = {f.flat_no for f in self.families}
+        vacant = self.total_flats - occupied
+
+        print("\n--- Occupied Flats ---")
+        if occupied:
+            print("Flats Occupied: ", sorted(occupied))
+        else:
+            print("The building is fully occupied!")
+        print("----------------------")
+
 
     def view_vacant_flats(self):
         """Displays all unoccupied flats."""
@@ -199,10 +213,11 @@ def run_admin_menu(system):
     while True:
         print("\n--- Admin Menu ---")
         print("1. Add New Family")
-        print("2. View Vacant Flats")
-        print("3. Post New Notice")
-        print("4. View All Notices")
-        print("5. Logout")
+        print("2. View Occupied Flats")
+        print("3. View Vacant Flats")
+        print("4. Post New Notice")
+        print("5. View All Notices")
+        print("6. Logout")
         
         choice = input("Enter choice (1-5): ").strip()
 
@@ -210,10 +225,10 @@ def run_admin_menu(system):
             print("\n--- Add Family Details ---")
             flat_no = input("Flat No (e.g., 1A): ").upper().strip()
             if flat_no not in system.total_flats:
-                 print(f"❌ Error: Flat {flat_no} is not a valid flat number.")
+                 print(f"Error: Flat {flat_no} is not a valid flat number.")
                  continue
             if any(f.flat_no == flat_no for f in system.families):
-                 print(f"❌ Error: Flat {flat_no} is already occupied.")
+                 print(f"Error: Flat {flat_no} is already occupied.")
                  continue
 
             head_member = input("Head Member Name: ").strip()
@@ -233,9 +248,12 @@ def run_admin_menu(system):
             system.add_family(flat_no, head_member, phone, members, email, password, nid)
 
         elif choice == '2':
+            system.view_occupied_flats()
+
+        elif choice == '3':
             system.view_vacant_flats()
         
-        elif choice == '3':
+        elif choice == '4':
             title = input("Notice Title: ").strip()
             content = input("Notice Content: ").strip()
             if title and content:
@@ -243,10 +261,10 @@ def run_admin_menu(system):
             else:
                 print("Title and content cannot be empty.")
 
-        elif choice == '4':
+        elif choice == '5':
             system.view_notices()
 
-        elif choice == '5':
+        elif choice == '6':
             print("Admin logged out.")
             break
         
@@ -290,12 +308,13 @@ def run_family_menu(system, user):
 
 def main():
     """Initializes the system and runs the interactive login process with a user-type choice."""
-    print("--- Building Management System (CLI) ---")
+    print("\n")
+    print("--- Building Management System (BMS) ---")
     system = BuildingSystem()
     
     while True:
         print("\n================================")
-        print("   WHO ARE YOU?")
+        print("         WHO ARE YOU?")
         print("================================")
         print("1. Admin")
         print("2. Family User (Flat Owner)")
@@ -319,18 +338,17 @@ def main():
                 print("Login failed! Invalid Admin Email or Password.")
 
         elif user_type_choice == '2':
-            # --- Family User Login (UPDATED PROMPT) ---
-            print("\n--- 🏡 Family Login ---")
+            print("\n--- Family Login ---")
             email = input("Enter User Email: ").strip() # Changed from Flat No
             password = input("Enter Password: ").strip()
 
             user = system.get_family_user(email, password) # Changed function call to use email
 
             if isinstance(user, Family):
-                print(f"✅ Flat {user.flat_no} logged in successfully!")
+                print(f"Flat {user.flat_no} logged in successfully!")
                 run_family_menu(system, user)
             else:
-                print("❌ Login failed! Invalid User Email or Password.")
+                print("Login failed! Invalid User Email or Password.")
 
         elif user_type_choice == '3':
             print("Goodbye! Shutting down BMS.")
