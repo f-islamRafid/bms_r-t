@@ -10,20 +10,20 @@ import os
 # -----------------------------
 
 class Family:
-def **init**(self, flat_no, head_member, phone, members, email, password, nid):
-self.flat_no = flat_no
-self.head_member = head_member
-self.phone = phone
-self.members = members
-self.email = email
-self.password = password
-self.nid = nid
+    def __init__(self, flat_no, head_member, phone, members, email, password, nid):
+        self.flat_no = flat_no
+        self.head_member = head_member
+        self.phone = phone
+        self.members = members
+        self.email = email
+        self.password = password
+        self.nid = nid
 
-class Notice:
-def **init**(self, title, content, date_posted=None):
-self.title = title
-self.content = content
-self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%m-%d %H:%M")
+    class Notice:
+        def __init__(self, title, content, date_posted=None):
+            self.title = title
+            self.content = content
+            self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # -----------------------------
 
