@@ -3,6 +3,25 @@ import json
 import bcrypt
 import os
 
+import os, json, bcrypt
+
+# 🔥 Auto-create default admin if users.json does not exist
+if not os.path.exists("users.json"):
+    print("⚠ No users.json found — creating default admin...")
+
+    default_admin = {
+        "username": "admin",
+        "password": bcrypt.hashpw("admin123".encode(), bcrypt.gensalt()).decode(),
+        "role": "admin"
+    }
+
+    with open("users.json", "w") as f:
+        json.dump({"users": [default_admin]}, f, indent=4)
+
+    print("✔ Default admin created: admin / admin123")
+
+
+
 # -----------------------------
 
 # Classes
