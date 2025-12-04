@@ -1,0 +1,23 @@
+{
+    "families": [
+        {
+            "flat_no": "3A",
+            "head_member": "SHaharin ONi",
+            "phone": "01872844541",
+            "members": 3,
+            "email": "onira1908@gmail.com",
+            "password": "123456",
+            "nid": "324234234"
+        },
+        {
+            "flat_no": "2A",
+            "head_member": "Tushi",
+            "phone": "9432894",
+            "members": 6,
+            "email": "tushi@gamil.com",
+            "password": "12321",
+            "nid": "2342423231"
+        }
+    ],
+    "notices": []
+}
