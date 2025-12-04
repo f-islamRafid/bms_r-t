@@ -9,20 +9,20 @@ import bcrypt
 # -----------------------------
 
 class Family:
-def **init**(self, flat_no, head_member, phone, members, email, password, nid):
-self.flat_no = flat_no
-self.head_member = head_member
-self.phone = phone
-self.members = members
-self.email = email
-self.password = password
-self.nid = nid
+    def __init__(self, flat_no, head_member, phone, members, email, password, nid):
+        self.flat_no = flat_no
+        self.head_member = head_member
+        self.phone = phone
+        self.members = members
+        self.email = email
+        self.password = password
+        self.nid = NotImplemented
 
 class Notice:
-def **init**(self, title, content, date_posted=None):
-self.title = title
-self.content = content
-self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%m-%d %H:%M")
+    def __init__(self, title, content, date_posted=None):
+        self.title = title
+        self.content = content
+        self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # -----------------------------
 
@@ -31,16 +31,16 @@ self.date_posted = date_posted if date_posted else datetime.now().strftime("%Y-%
 # -----------------------------
 
 class BuildingSystem:
-def **init**(self):
-self.families = []
-self.notices = []
-self.admin_email = None
-self.admin_password_hash = None
-self.total_flats = set()
+    def __init__(self):
+        self.families = []
+        self.notices = []
+        self.admin_email = None
+        self.admin_password_hash = None
+        self.total_flats = set()
 
-```
-    self.load_config()
-    self.load_data()
+
+        self.load_config()
+        self.load_data()
 
 def load_config(self):
     try:
@@ -121,7 +121,7 @@ def post_notice(self):
     self.notices.append(Notice(title, content))
     self.save_data()
     print("Notice posted.")
-```
+
 
 # -----------------------------
 
@@ -130,32 +130,30 @@ def post_notice(self):
 # -----------------------------
 
 def main():
-system = BuildingSystem()
-email = input("Email: ")
-password = input("Password: ")
-user = system.login(email, password)
+    system = BuildingSystem()
+    email = input("Email: ")
+    password = input("Password: ")
+    user = system.login(email, password)
 
-```
-if user == "admin":
-    print("Admin logged in!")
-    while True:
-        print("\n1. Add Family\n2. View Vacant Flats\n3. Post Notice\n4. Logout")
-        choice = input("Choice: ")
-        if choice == "1":
-            system.add_family()
-        elif choice == "2":
-            system.view_vacant_flats()
-        elif choice == "3":
-            system.post_notice()
-        elif choice == "4":
-            break
-        else:
-            print("Invalid choice.")
-elif user:
-    print(f"Family {user.head_member} logged in!")
-else:
-    print("Login failed.")
-```
+    if user == "admin":
+        print("Admin logged in!")
+        while True:
+            print("\n1. Add Family\n2. View Vacant Flats\n3. Post Notice\n4. Logout")
+            choice = input("Choice: ")
+            if choice == "1":
+                system.add_family()
+            elif choice == "2":
+                system.view_vacant_flats()
+            elif choice == "3":
+                system.post_notice()
+            elif choice == "4":
+                break
+            else:
+                print("Invalid choice.")
+    elif user:
+        print(f"Family {user.head_member} logged in!")
+    else:
+        print("Login failed.")
 
-if **name** == "**main**":
-main()
+if __name__ == "__main__":
+    main() 
