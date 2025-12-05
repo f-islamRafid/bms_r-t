@@ -60,37 +60,59 @@ class BuildingSystem:
         self.admin_email = None
         self.admin_password_hash = None
         self.total_flats = set()
+        self.config_loaded = False # New flag to track config status
 
-        self._load_config()
+        # Try to load config; if it fails, the main loop handles the interactive setup
+        if self._load_config():
+            self.config_loaded = True
+        
         self.load_data()
 
     def _load_config(self):
-        """Loads or creates the config.json file."""
+        """Loads or attempts to load the config.json file."""
         try:
             with open("config.json", "r") as f:
                 config = json.load(f)
                 self.admin_email = config["admin_email"]
                 self.admin_password_hash = config["admin_password_hash"].encode('utf-8')
                 self.total_flats = set(config["total_flats"])
+            return True # Config loaded successfully
         except (FileNotFoundError, KeyError):
+            # Config not found or corrupted, needs interactive setup
+            return False
+    
+    def setup_initial_config(self, num_floors, units_per_floor):
+        """
+        Creates and saves the initial config based on interactive input.
+        This runs only once when config.json is missing.
+        """
+        self.admin_email = os.getenv("BMS_ADMIN_EMAIL", "admin@bms.com")
+        admin_password = os.getenv("BMS_ADMIN_PASSWORD", "supersecure")
 
-            self.admin_email = os.getenv("BMS_ADMIN_EMAIL", "admin@bms.com")
-            admin_password = os.getenv("BMS_ADMIN_PASSWORD", "supersecure")
-            num_floors = int(os.getenv("BMS_FLOORS", 5))
-            units_per_floor = int(os.getenv("BMS_UNITS_PER_FLOOR", 2))
+        self.admin_password_hash = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt())
+        
+        # Generate flats based on user input (e.g., 1A, 1B, 2A, 2B, etc.)
+        flats_list = [
+            f"{floor}{chr(ord('A') + i)}" 
+            for floor in range(1, num_floors + 1) 
+            for i in range(units_per_floor)
+        ]
+        self.total_flats = set(flats_list)
 
-            self.admin_password_hash = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt())
-            flats_list = [f"{floor}{chr(ord('A') + i)}" for floor in range(1, num_floors + 1) for i in range(units_per_floor)]
-            self.total_flats = set(flats_list)
+        config = {
+            "admin_email": self.admin_email,
+            "admin_password_hash": self.admin_password_hash.decode('utf-8'),
+            "total_flats": sorted(flats_list)
+        }
+        with open("config.json", "w") as f:
+            json.dump(config, f, indent=4)
+            
+        self.config_loaded = True
+        print(f"\n--- Initial Building Setup Complete ---")
+        print(f"Total Flats Created: {len(flats_list)}")
+        print(f"Default Admin User: {self.admin_email} / {admin_password}")
+        print("---------------------------------------")
 
-            config = {
-                "admin_email": self.admin_email,
-                "admin_password_hash": self.admin_password_hash.decode('utf-8'),
-                "total_flats": sorted(flats_list)
-            }
-            with open("config.json", "w") as f:
-                json.dump(config, f, indent=4)
-            print(f"Config created with {len(flats_list)} flats. Default Admin: {self.admin_email} / {admin_password}")
 
     def save_data(self):
         """Saves family and notice data to data.json."""
@@ -114,9 +136,11 @@ class BuildingSystem:
                         phone=f_data["phone"],
                         members=f_data["members"],
                         email=f_data["email"],
-                        password=f_data.get("password_hash"),
+                        # Use password_hash directly for loading
+                        password=f_data.get("password_hash"), 
                         nid=f_data["nid"]
                     )
+                    # Ensure we restore the hash correctly
                     family_obj.password_hash = f_data.get("password_hash")
                     self.families.append(family_obj)
 
@@ -128,7 +152,11 @@ class BuildingSystem:
             self.families, self.notices = [], []
 
     def authenticate_admin(self, email, password):
-        """Authenticates an administrator. Exposed for targeted login."""
+        """Authenticates an administrator."""
+        if not self.config_loaded:
+             print("Error: System not fully configured yet.")
+             return False
+             
         if email != self.admin_email:
             return False
         if bcrypt.checkpw(password.encode('utf-8'), self.admin_password_hash):
@@ -136,7 +164,7 @@ class BuildingSystem:
         return False
 
     def get_family_user(self, email, password):
-        """Authenticates a family user using email and password. (UPDATED LOGIC)"""
+        """Authenticates a family user using email and password."""
         for family in self.families:
             if family.email.lower() == email.lower(): # Match on email
                 if family.check_password(password):
@@ -163,13 +191,15 @@ class BuildingSystem:
     def view_occupied_flats(self):
         """Display all occupied flats."""
         occupied = {f.flat_no for f in self.families}
-        vacant = self.total_flats - occupied
-
+        # Correct logic: occupied is flats with families, vacant is total - occupied
+        
         print("\n--- Occupied Flats ---")
         if occupied:
             print("Flats Occupied: ", sorted(occupied))
+            for family in sorted(self.families, key=lambda f: f.flat_no):
+                print(f"  - Flat {family.flat_no}: {family.head_member} ({family.email})")
         else:
-            print("The building is fully occupied!")
+            print("No flats are currently occupied.")
         print("----------------------")
 
 
@@ -219,9 +249,14 @@ def run_admin_menu(system):
         print("5. View All Notices")
         print("6. Logout")
         
-        choice = input("Enter choice (1-5): ").strip()
+        choice = input("Enter choice (1-6): ").strip()
 
         if choice == '1':
+            system.view_vacant_flats()
+            if not (system.total_flats - {f.flat_no for f in system.families}):
+                print("Cannot add family: No vacant flats available.")
+                continue
+
             print("\n--- Add Family Details ---")
             flat_no = input("Flat No (e.g., 1A): ").upper().strip()
             if flat_no not in system.total_flats:
@@ -236,7 +271,10 @@ def run_admin_menu(system):
             
             while True:
                 try:
-                    members = int(input("Number of Members: ").strip())
+                    members = int(input("Number of Members (integer): ").strip())
+                    if members < 1:
+                        print("Must have at least 1 member.")
+                        continue
                     break
                 except ValueError:
                     print("Invalid number. Please enter an integer.")
@@ -244,6 +282,10 @@ def run_admin_menu(system):
             email = input("Email: ").strip()
             password = input("Password (will be hashed): ").strip()
             nid = input("NID/ID Card No: ").strip()
+            
+            if not all([flat_no, head_member, phone, email, password, nid]):
+                print("All fields are required. Operation cancelled.")
+                continue
             
             system.add_family(flat_no, head_member, phone, members, email, password, nid)
 
@@ -277,6 +319,7 @@ def run_family_menu(system, user):
         print(f"\n--- Flat {user.flat_no} Menu (Head: {user.head_member}) ---")
         print("1. View My Details")
         print("2. View Building Notices")
+        # print("3. Submit Maintenance Request (Future Feature)")
         print("3. Logout")
         
         choice = input("Enter choice (1-3): ").strip()
@@ -295,7 +338,7 @@ def run_family_menu(system, user):
             system.view_notices()
         
         elif choice == '3':
-            print(f"Family from flat {user.flat_no} logged out.")
+            print(f"Family from flat {user.flat_no} - {user.head_member} logged out.")
             break
         
         else:
@@ -312,9 +355,27 @@ def main():
     print("--- Building Management System (BMS) ---")
     system = BuildingSystem()
     
+    # --- Interactive Setup Check ---
+    if not system.config_loaded:
+        print("\n!!! First-Time Building Setup Required !!!")
+        while True:
+            try:
+                num_floors = int(input("Enter number of floors in the building: ").strip())
+                units_per_floor = int(input("Enter number of flats per floor (A, B, C...): ").strip())
+                
+                if num_floors <= 0 or units_per_floor <= 0 or units_per_floor > 26:
+                    print("Error: Floors and units must be positive integers. Units per floor max is 26 (A-Z).")
+                    continue
+                    
+                system.setup_initial_config(num_floors, units_per_floor)
+                break
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
+
+    # --- Main Login Loop ---
     while True:
         print("\n================================")
-        print("         WHO ARE YOU?")
+        print("         Admin / User?")
         print("================================")
         print("1. Admin")
         print("2. Family User (Flat Owner)")
@@ -329,20 +390,20 @@ def main():
             email = input("Enter Admin Email: ").strip()
             password = input("Enter Password: ").strip()
 
-            user = system.authenticate_admin(email, password)
+            user_role = system.authenticate_admin(email, password)
 
-            if user == "admin":
+            if user_role == "admin":
                 print(f"Admin logged in successfully!")
                 run_admin_menu(system)
             else:
                 print("Login failed! Invalid Admin Email or Password.")
 
         elif user_type_choice == '2':
-            print("\n--- Family Login ---")
-            email = input("Enter User Email: ").strip() # Changed from Flat No
+            print("\n---  Family Login ---")
+            email = input("Enter User Email: ").strip()
             password = input("Enter Password: ").strip()
 
-            user = system.get_family_user(email, password) # Changed function call to use email
+            user = system.get_family_user(email, password)
 
             if isinstance(user, Family):
                 print(f"Flat {user.flat_no} logged in successfully!")
